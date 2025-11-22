@@ -230,6 +230,64 @@ function App() {
         }
     }, [session]);
 
+    // --- AUTOMATION ENGINE ---
+    useEffect(() => {
+        if (!session || recurringRules.length === 0) return; // Only run if session is active and rules exist
+
+        const today = new Date();
+        let newTransactions: Transaction[] = [];
+        let updatedRules = [...recurringRules];
+        let generatedCount = 0;
+
+        updatedRules = updatedRules.map(rule => {
+            if (!rule.active) return rule;
+
+            let nextRun = new Date(rule.nextRunDate);
+            let ruleChanged = false;
+
+            // While next run date is in the past or today, generate transaction
+            while (nextRun <= today) {
+                newTransactions.push({
+                    id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+                    amount: rule.amount,
+                    type: rule.type,
+                    category: rule.category,
+                    description: rule.description + " (Auto)",
+                    date: nextRun.toISOString(),
+                    accountId: rule.accountId,
+                    isBusiness: rule.isBusiness
+                });
+
+                // Advance date
+                if (rule.frequency === 'monthly') {
+                    nextRun.setMonth(nextRun.getMonth() + 1);
+                } else {
+                    nextRun.setFullYear(nextRun.getFullYear() + 1);
+                }
+                ruleChanged = true;
+                generatedCount++;
+            }
+
+            if (ruleChanged) {
+                return { ...rule, nextRunDate: nextRun.toISOString() };
+            }
+            return rule;
+        });
+
+        if (newTransactions.length > 0) {
+            setTransactions(prev => [...prev, ...newTransactions]);
+            setRecurringRules(updatedRules);
+
+            // Persist changes
+            Promise.all([
+                ...newTransactions.map(t => addData('transactions', t)),
+                ...updatedRules.map(r => updateData('recurring_rules', r.id, r))
+            ]);
+
+            addToast(`${generatedCount} transazioni ricorrenti generate`, 'info');
+        }
+    }, [recurringRules, session, addData, updateData, addToast]); // Added session, addData, updateData, addToast to dependencies
+
     if (!supabase) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white p-4">
