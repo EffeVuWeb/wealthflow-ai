@@ -165,6 +165,10 @@ function App() {
 
     // Auth & Data Fetching
     useEffect(() => {
+        if (!supabase) {
+            setLoading(false);
+            return;
+        }
         supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session);
             setLoading(false);
@@ -225,6 +229,21 @@ function App() {
             loadData();
         }
     }, [session]);
+
+    if (!supabase) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white p-4">
+                <div className="max-w-md text-center space-y-4">
+                    <h1 className="text-2xl font-bold text-red-500">Configurazione Mancante</h1>
+                    <p>Le chiavi di Supabase non sono state trovate.</p>
+                    <p className="text-sm text-slate-400">
+                        Assicurati di aver aggiunto <code>VITE_SUPABASE_URL</code> e <code>VITE_SUPABASE_ANON_KEY</code>
+                        nelle variabili d'ambiente di Vercel (o nel file .env locale).
+                    </p>
+                </div>
+            </div>
+        );
+    }
 
     if (loading) {
         return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white">Caricamento...</div>;
@@ -1147,6 +1166,8 @@ function App() {
             </div>
         );
     };
+
+
 
     if (isLocked) {
         return (
