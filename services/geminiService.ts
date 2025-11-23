@@ -260,3 +260,40 @@ export const getFinancialAdvice = async (
     return "C'è stato un problema di connessione con il Coach. Riprova più tardi.";
   }
 };
+
+export const generateForecast = async (
+  monthlyIncome: number,
+  monthlyExpenses: number,
+  balance: number,
+  savingsRate: number
+): Promise<string> => {
+  try {
+    const ai = getAIClient();
+    if (!ai) return "Configura la chiave API per vedere le previsioni AI.";
+
+    const prompt = `
+            Act as a financial forecaster.
+            User Data:
+            - Monthly Income: €${monthlyIncome}
+            - Monthly Expenses: €${monthlyExpenses}
+            - Current Balance: €${balance}
+            - Savings Rate: ${savingsRate}%
+
+            Task:
+            Generate a short, 2-sentence insight about their future financial health over the next 6 months.
+            Be specific (e.g., "At this rate, you will save X").
+            Warn if they are at risk of going negative.
+            Use a professional but encouraging tone in Italian.
+        `;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: { parts: [{ text: prompt }] }
+    });
+
+    return response.text || "Impossibile generare previsione.";
+  } catch (error) {
+    console.error("Forecast error:", error);
+    return "Errore nella generazione della previsione.";
+  }
+};
