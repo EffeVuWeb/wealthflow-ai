@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import {
     Transaction, Account, Budget, Goal, Loan, Debt, Subscription, Invoice, Investment, RecurringTransaction, DashboardWidget
@@ -19,31 +20,31 @@ const mapKeys = (obj: any, fn: (key: string) => string): any => {
 
 export const useSupabase = () => {
 
-    const fetchData = async (table: string) => {
+    const fetchData = useCallback(async (table: string) => {
         const { data, error } = await supabase.from(table).select('*');
         if (error) throw error;
         return mapKeys(data, toCamelCase);
-    };
+    }, []);
 
-    const addData = async (table: string, item: any) => {
+    const addData = useCallback(async (table: string, item: any) => {
         const { id, ...rest } = item;
         const snakeItem = mapKeys(item, toSnakeCase);
         const { data, error } = await supabase.from(table).insert(snakeItem).select().single();
         if (error) throw error;
         return mapKeys(data, toCamelCase);
-    };
+    }, []);
 
-    const updateData = async (table: string, id: string, updates: any) => {
+    const updateData = useCallback(async (table: string, id: string, updates: any) => {
         const snakeUpdates = mapKeys(updates, toSnakeCase);
         const { data, error } = await supabase.from(table).update(snakeUpdates).eq('id', id).select().single();
         if (error) throw error;
         return mapKeys(data, toCamelCase);
-    };
+    }, []);
 
-    const deleteData = async (table: string, id: string) => {
+    const deleteData = useCallback(async (table: string, id: string) => {
         const { error } = await supabase.from(table).delete().eq('id', id);
         if (error) throw error;
-    };
+    }, []);
 
     return {
         fetchData,

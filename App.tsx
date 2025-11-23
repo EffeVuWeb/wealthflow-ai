@@ -84,13 +84,6 @@ function App() {
         setToasts(prev => prev.filter(t => t.id !== id));
     };
 
-    useEffect(() => {
-        const storedPin = localStorage.getItem('wf_security_pin');
-        if (storedPin) {
-            setIsLocked(true);
-        }
-    }, []);
-
     const handlePinUnlock = () => {
         const storedPin = localStorage.getItem('wf_security_pin');
         if (pinInput === storedPin) {
@@ -136,7 +129,21 @@ function App() {
     const [widgets, setWidgets] = useState<DashboardWidget[]>(DEFAULT_WIDGETS);
     const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
 
-    // Calculated Accounts
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
+
+    // Filter State
+    const [showFilters, setShowFilters] = useState(false);
+    const [filterCategory, setFilterCategory] = useState('');
+    const [filterStartDate, setFilterStartDate] = useState('');
+    const [filterEndDate, setFilterEndDate] = useState('');
+    const [filterMinAmount, setFilterMinAmount] = useState('');
+    const [filterMaxAmount, setFilterMaxAmount] = useState('');
+    const [filterSearch, setFilterSearch] = useState('');
+
+    // --- HOOKS ---
+
+    // 1. Calculated Accounts
     const accounts = useMemo(() => {
         return accountsState.map(acc => {
             const accountTransactions = transactions.filter(t => t.accountId === acc.id);
@@ -151,19 +158,136 @@ function App() {
         });
     }, [accountsState, transactions]);
 
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
+    // 2. Filter Logic
+    const filteredTransactions = useMemo(() => {
+        return transactions.filter(tx => {
+            const txDate = new Date(tx.date);
+            if (filterStartDate) {
+                const start = new Date(filterStartDate);
+                start.setHours(0, 0, 0, 0);
+                if (txDate < start) return false;
+            }
+            if (filterEndDate) {
+                const end = new Date(filterEndDate);
+                end.setHours(23, 59, 59, 999);
+                if (txDate > end) return false;
+            }
+            if (filterCategory && tx.category !== filterCategory) return false;
+            if (filterMinAmount && tx.amount < parseFloat(filterMinAmount)) return false;
+            if (filterMaxAmount && tx.amount > parseFloat(filterMaxAmount)) return false;
+            if (filterSearch && !tx.description.toLowerCase().includes(filterSearch.toLowerCase())) return false;
+            return true;
+        }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    }, [transactions, filterStartDate, filterEndDate, filterCategory, filterMinAmount, filterMaxAmount, filterSearch]);
 
-    // Filter State
-    const [showFilters, setShowFilters] = useState(false);
-    const [filterCategory, setFilterCategory] = useState('');
-    const [filterStartDate, setFilterStartDate] = useState('');
-    const [filterEndDate, setFilterEndDate] = useState('');
-    const [filterMinAmount, setFilterMinAmount] = useState('');
-    const [filterMaxAmount, setFilterMaxAmount] = useState('');
-    const [filterSearch, setFilterSearch] = useState('');
+    // 3. Transaction Chart Data
+    const transactionChartData = useMemo(() => {
+        const data: Record<string, { date: string, income: number, expense: number }> = {};
+        const sorted = [...filteredTransactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        sorted.forEach(t => {
+            const dateKey = new Date(t.date).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' });
+            if (!data[dateKey]) {
+                data[dateKey] = { date: dateKey, income: 0, expense: 0 };
+            }
+            if (t.type === 'income') data[dateKey].income += t.amount;
+            else data[dateKey].expense += t.amount;
+        });
+        return Object.values(data).slice(-20);
+    }, [filteredTransactions]);
 
-    // Auth & Data Fetching
+    // 4. Summary Calculations
+    const summary: FinancialSummary = useMemo(() => {
+        const totalIncome = transactions.filter(t => t.type === 'income').reduce((acc, curr) => acc + curr.amount, 0);
+        const totalExpense = transactions.filter(t => t.type === 'expense').reduce((acc, curr) => acc + curr.amount, 0);
+        const balance = totalIncome - totalExpense;
+        const savingsRate = totalIncome > 0 ? ((totalIncome - totalExpense) / totalIncome) * 100 : 0;
+        const totalLiquidAssets = accounts.reduce((acc, curr) => acc + curr.balance, 0);
+        const totalInvestments = investments.reduce((sum, inv) => sum + (inv.quantity * inv.currentPrice), 0);
+        const totalLiabilities = loans.reduce((acc, curr) => acc + curr.remainingAmount, 0);
+        const totalPersonalDebts = debts.filter(d => !d.isPaid).reduce((acc, d) => acc + d.amount, 0);
+
+        return {
+            totalIncome,
+            totalExpense,
+            balance,
+            savingsRate,
+            netWorth: (totalLiquidAssets + totalInvestments) - totalLiabilities - totalPersonalDebts,
+            investmentsValue: totalInvestments
+        };
+    }, [transactions, accounts, loans, debts, investments]);
+
+    const comparisonData = [
+        { name: 'Entrate', value: summary.totalIncome },
+        { name: 'Spese', value: summary.totalExpense },
+    ];
+
+    // 5. Chart Data for Widgets
+    const yearlyComparisonData = useMemo(() => {
+        const currentYear = new Date().getFullYear();
+        const years = Array.from({ length: 5 }, (_, i) => currentYear - 4 + i);
+        return years.map(year => {
+            const yearStart = new Date(year, 0, 1);
+            const yearEnd = new Date(year, 11, 31, 23, 59, 59);
+            const yearTxs = transactions.filter(t => {
+                const d = new Date(t.date);
+                return d >= yearStart && d <= yearEnd;
+            });
+            const income = yearTxs.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+            const expense = yearTxs.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+            return { year: year.toString(), Entrate: income, Spese: expense };
+        });
+    }, [transactions]);
+
+    const expenseData = useMemo(() => {
+        const data: Record<string, number> = {};
+        transactions.filter(t => t.type === 'expense').forEach(t => {
+            data[t.category] = (data[t.category] || 0) + t.amount;
+        });
+        return Object.entries(data).map(([name, value]) => ({ name, value }));
+    }, [transactions]);
+
+    const assetLiabilityData = useMemo(() => {
+        const liquid = accounts.filter(a => a.type === 'bank' || a.type === 'cash').reduce((acc, c) => acc + (c.balance > 0 ? c.balance : 0), 0);
+        const investmentVal = investments.reduce((sum, inv) => sum + (inv.quantity * inv.currentPrice), 0);
+        const ccDebt = accounts.filter(a => a.type === 'credit_card' && a.balance < 0).reduce((acc, c) => acc + Math.abs(c.balance), 0);
+        const loanDebt = loans.reduce((acc, l) => acc + l.remainingAmount, 0);
+        const personalDebt = debts.filter(d => !d.isPaid).reduce((acc, d) => acc + d.amount, 0);
+        const bankOverdraft = accounts.filter(a => a.type === 'bank' && a.balance < 0).reduce((acc, c) => acc + Math.abs(c.balance), 0);
+
+        return [
+            { name: 'Liquidità', value: liquid, color: '#10b981' },
+            { name: 'Investimenti', value: investmentVal, color: '#8b5cf6' },
+            { name: 'Debiti', value: ccDebt + loanDebt + personalDebt + bankOverdraft, color: '#f43f5e' }
+        ];
+    }, [accounts, loans, debts, investments]);
+
+    // 6. Next Tax Deadline
+    const nextTaxDeadline = useMemo(() => {
+        const year = new Date().getFullYear();
+        const today = new Date();
+        const deadlines = [new Date(`${year}-06-30`), new Date(`${year}-11-30`)];
+        let next = deadlines.find(d => d >= today);
+        if (!next) next = new Date(`${year + 1}-06-30`);
+        const daysLeft = Math.ceil((next.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        return { date: next, daysLeft };
+    }, []);
+
+    // 7. Total Debt Summary
+    const totalDebtSummary = useMemo(() => {
+        const loansTotal = loans.reduce((acc, l) => acc + l.remainingAmount, 0);
+        const debtsTotal = debts.filter(d => !d.isPaid).reduce((acc, d) => acc + d.amount, 0);
+        return loansTotal + debtsTotal;
+    }, [loans, debts]);
+
+    // 8. Security PIN Check
+    useEffect(() => {
+        const storedPin = localStorage.getItem('wf_security_pin');
+        if (storedPin) {
+            setIsLocked(true);
+        }
+    }, []);
+
+    // 9. Auth & Data Fetching
     useEffect(() => {
         if (!supabase) {
             setLoading(false);
@@ -216,7 +340,6 @@ function App() {
                     if (wdgs && wdgs.length > 0) {
                         setWidgets(wdgs);
                     } else {
-                        // Initialize widgets if empty
                         const initializedWidgets = DEFAULT_WIDGETS.map(w => ({ ...w, id: crypto.randomUUID() }));
                         await Promise.all(initializedWidgets.map(w => addData('widgets', w)));
                         setWidgets(initializedWidgets);
@@ -230,9 +353,9 @@ function App() {
         }
     }, [session]);
 
-    // --- AUTOMATION ENGINE ---
+    // 10. Automation Engine
     useEffect(() => {
-        if (!session || recurringRules.length === 0) return; // Only run if session is active and rules exist
+        if (!session || recurringRules.length === 0) return;
 
         const today = new Date();
         let newTransactions: Transaction[] = [];
@@ -245,7 +368,6 @@ function App() {
             let nextRun = new Date(rule.nextRunDate);
             let ruleChanged = false;
 
-            // While next run date is in the past or today, generate transaction
             while (nextRun <= today) {
                 newTransactions.push({
                     id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
@@ -258,7 +380,6 @@ function App() {
                     isBusiness: rule.isBusiness
                 });
 
-                // Advance date
                 if (rule.frequency === 'monthly') {
                     nextRun.setMonth(nextRun.getMonth() + 1);
                 } else {
@@ -278,7 +399,6 @@ function App() {
             setTransactions(prev => [...prev, ...newTransactions]);
             setRecurringRules(updatedRules);
 
-            // Persist changes
             Promise.all([
                 ...newTransactions.map(t => addData('transactions', t)),
                 ...updatedRules.map(r => updateData('recurring_rules', r.id, r))
@@ -286,7 +406,9 @@ function App() {
 
             addToast(`${generatedCount} transazioni ricorrenti generate`, 'info');
         }
-    }, [recurringRules, session, addData, updateData, addToast]); // Added session, addData, updateData, addToast to dependencies
+    }, [recurringRules, session, addData, updateData]);
+
+    // --- CONDITIONAL RETURNS (Must be after all hooks) ---
 
     if (!supabase) {
         return (
@@ -310,57 +432,6 @@ function App() {
     if (!session) {
         return <Auth />;
     }
-
-    // --- AUTOMATION ENGINE ---
-    useEffect(() => {
-        if (recurringRules.length === 0) return;
-
-        const today = new Date();
-        let newTransactions: Transaction[] = [];
-        let updatedRules = [...recurringRules];
-        let generatedCount = 0;
-
-        updatedRules = updatedRules.map(rule => {
-            if (!rule.active) return rule;
-
-            let nextRun = new Date(rule.nextRunDate);
-            let ruleChanged = false;
-
-            // While next run date is in the past or today, generate transaction
-            while (nextRun <= today) {
-                newTransactions.push({
-                    id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-                    amount: rule.amount,
-                    type: rule.type,
-                    category: rule.category,
-                    description: rule.description + " (Auto)",
-                    date: nextRun.toISOString(),
-                    accountId: rule.accountId,
-                    isBusiness: rule.isBusiness
-                });
-
-                // Advance date
-                if (rule.frequency === 'monthly') {
-                    nextRun.setMonth(nextRun.getMonth() + 1);
-                } else {
-                    nextRun.setFullYear(nextRun.getFullYear() + 1);
-                }
-                ruleChanged = true;
-                generatedCount++;
-            }
-
-            if (ruleChanged) {
-                return { ...rule, nextRunDate: nextRun.toISOString() };
-            }
-            return rule;
-        });
-
-        if (newTransactions.length > 0) {
-            setTransactions(prev => [...newTransactions, ...prev]);
-            setRecurringRules(updatedRules);
-            addToast(`Generate ${generatedCount} transazioni automatiche.`, "success");
-        }
-    }, [recurringRules]); // This might trigger on mount if rules exist
 
     // --- HANDLERS ---
 
@@ -396,7 +467,6 @@ function App() {
             } catch (error) {
                 console.error(error);
                 addToast("Errore riordinamento widget", "error");
-                // Revert? Too complex for now.
             }
         }
     };
@@ -786,28 +856,6 @@ function App() {
         setActiveView(AppView.DASHBOARD);
     };
 
-    // Filter Logic
-    const filteredTransactions = useMemo(() => {
-        return transactions.filter(tx => {
-            const txDate = new Date(tx.date);
-            if (filterStartDate) {
-                const start = new Date(filterStartDate);
-                start.setHours(0, 0, 0, 0);
-                if (txDate < start) return false;
-            }
-            if (filterEndDate) {
-                const end = new Date(filterEndDate);
-                end.setHours(23, 59, 59, 999);
-                if (txDate > end) return false;
-            }
-            if (filterMinAmount && tx.amount < parseFloat(filterMinAmount)) return false;
-            if (filterMaxAmount && tx.amount > parseFloat(filterMaxAmount)) return false;
-            if (filterCategory && tx.category !== filterCategory) return false;
-            if (filterSearch && !tx.description.toLowerCase().includes(filterSearch.toLowerCase())) return false;
-            return true;
-        });
-    }, [transactions, filterStartDate, filterEndDate, filterMinAmount, filterMaxAmount, filterCategory, filterSearch]);
-
     const resetFilters = () => {
         setFilterCategory('');
         setFilterStartDate('');
@@ -817,108 +865,8 @@ function App() {
         setFilterSearch('');
     };
 
-    // Transaction Chart Data
-    const transactionChartData = useMemo(() => {
-        const data: Record<string, { date: string, income: number, expense: number }> = {};
-        const sorted = [...filteredTransactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-        sorted.forEach(t => {
-            const dateKey = new Date(t.date).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' });
-            if (!data[dateKey]) {
-                data[dateKey] = { date: dateKey, income: 0, expense: 0 };
-            }
-            if (t.type === 'income') data[dateKey].income += t.amount;
-            else data[dateKey].expense += t.amount;
-        });
-        return Object.values(data).slice(-20);
-    }, [filteredTransactions]);
-
-    // Summary Calculations
-    const summary: FinancialSummary = useMemo(() => {
-        const totalIncome = transactions.filter(t => t.type === 'income').reduce((acc, curr) => acc + curr.amount, 0);
-        const totalExpense = transactions.filter(t => t.type === 'expense').reduce((acc, curr) => acc + curr.amount, 0);
-        const balance = totalIncome - totalExpense;
-        const savingsRate = totalIncome > 0 ? ((totalIncome - totalExpense) / totalIncome) * 100 : 0;
-        const totalLiquidAssets = accounts.reduce((acc, curr) => acc + curr.balance, 0);
-        const totalInvestments = investments.reduce((sum, inv) => sum + (inv.quantity * inv.currentPrice), 0);
-        const totalLiabilities = loans.reduce((acc, curr) => acc + curr.remainingAmount, 0);
-        const totalPersonalDebts = debts.filter(d => !d.isPaid).reduce((acc, d) => acc + d.amount, 0);
-
-        return {
-            totalIncome,
-            totalExpense,
-            balance,
-            savingsRate,
-            netWorth: (totalLiquidAssets + totalInvestments) - totalLiabilities - totalPersonalDebts,
-            investmentsValue: totalInvestments
-        };
-    }, [transactions, accounts, loans, debts, investments]);
-
-    // Chart Data for Widgets
-    const yearlyComparisonData = useMemo(() => {
-        const currentYear = new Date().getFullYear();
-        const years = Array.from({ length: 5 }, (_, i) => currentYear - 4 + i);
-        return years.map(year => {
-            const yearStart = new Date(year, 0, 1);
-            const yearEnd = new Date(year, 11, 31, 23, 59, 59);
-            const yearTxs = transactions.filter(t => {
-                const d = new Date(t.date);
-                return d >= yearStart && d <= yearEnd;
-            });
-            const income = yearTxs.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
-            const expense = yearTxs.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
-            return { year: year.toString(), Entrate: income, Spese: expense };
-        });
-    }, [transactions]);
-
-    const expenseData = useMemo(() => {
-        const data: Record<string, number> = {};
-        transactions.filter(t => t.type === 'expense').forEach(t => {
-            data[t.category] = (data[t.category] || 0) + t.amount;
-        });
-        return Object.entries(data).map(([name, value]) => ({ name, value }));
-    }, [transactions]);
-
-    const assetLiabilityData = useMemo(() => {
-        const liquid = accounts.filter(a => a.type === 'bank' || a.type === 'cash').reduce((acc, c) => acc + (c.balance > 0 ? c.balance : 0), 0);
-        const investmentVal = investments.reduce((sum, inv) => sum + (inv.quantity * inv.currentPrice), 0);
-        const ccDebt = accounts.filter(a => a.type === 'credit_card' && a.balance < 0).reduce((acc, c) => acc + Math.abs(c.balance), 0);
-        const loanDebt = loans.reduce((acc, l) => acc + l.remainingAmount, 0);
-        const personalDebt = debts.filter(d => !d.isPaid).reduce((acc, d) => acc + d.amount, 0);
-        const bankOverdraft = accounts.filter(a => a.type === 'bank' && a.balance < 0).reduce((acc, c) => acc + Math.abs(c.balance), 0);
-
-        return [
-            { name: 'Liquidità', value: liquid, color: '#10b981' },
-            { name: 'Investimenti', value: investmentVal, color: '#8b5cf6' },
-            { name: 'Debiti', value: ccDebt + loanDebt + personalDebt + bankOverdraft, color: '#f43f5e' }
-        ];
-    }, [accounts, loans, debts, investments]);
-
-    const comparisonData = [
-        { name: 'Entrate', value: summary.totalIncome },
-        { name: 'Spese', value: summary.totalExpense },
-    ];
-
     // Helper for Privacy Mode
     const maskAmount = (amount: number) => privacyMode ? '****' : `€ ${amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`;
-
-    // Calculate Next Tax Deadline (simplified logic for widget)
-    const nextTaxDeadline = useMemo(() => {
-        const year = new Date().getFullYear();
-        const today = new Date();
-        const deadlines = [new Date(`${year}-06-30`), new Date(`${year}-11-30`)];
-        // If June passed, check Nov. If Nov passed, check June next year.
-        let next = deadlines.find(d => d >= today);
-        if (!next) next = new Date(`${year + 1}-06-30`);
-        const daysLeft = Math.ceil((next.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-        return { date: next, daysLeft };
-    }, []);
-
-    // Calculate Total Debt for Widget
-    const totalDebtSummary = useMemo(() => {
-        const loansTotal = loans.reduce((acc, l) => acc + l.remainingAmount, 0);
-        const debtsTotal = debts.filter(d => !d.isPaid).reduce((acc, d) => acc + d.amount, 0);
-        return loansTotal + debtsTotal;
-    }, [loans, debts]);
 
     // RENDER WIDGETS
     const renderWidget = (widget: DashboardWidget) => {
@@ -1224,8 +1172,6 @@ function App() {
             </div>
         );
     };
-
-
 
     if (isLocked) {
         return (
