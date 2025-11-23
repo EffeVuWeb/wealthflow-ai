@@ -61,19 +61,26 @@ export const parseVoiceTransaction = async (text: string): Promise<{ amount: num
       contents: {
         parts: [
           {
-            text: `Analyze this spoken transaction: "${text}".
-            Extract the following details in JSON format:
-            - "amount": The number (e.g., "twenty" -> 20).
-            - "description": What was bought.
-            - "category": Choose the best fitting category from this list: ${EXPENSE_CATEGORIES.join(', ')}. If unsure, use "Altro".
-            
-            Return ONLY the JSON object, no markdown.`
+            text: `You are a financial assistant. Analyze this spoken transaction text: "${text}".
+            Extract the following fields into a valid JSON object:
+            - "amount": number (e.g. 20).
+            - "description": string (short description).
+            - "category": string (one of: ${EXPENSE_CATEGORIES.join(', ')}). Use "Altro" if unclear.
+
+            Examples:
+            Input: "20 euro benzina" -> {"amount": 20, "description": "Benzina", "category": "Trasporti"}
+            Input: "pranzo 15" -> {"amount": 15, "description": "Pranzo", "category": "Cibo"}
+
+            Return ONLY the JSON. Do not use markdown formatting.`
           }
         ]
       }
     });
 
-    const responseText = response.text || "";
+    let responseText = response.text || "";
+    // Clean up potential markdown code blocks
+    responseText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       return JSON.parse(jsonMatch[0]);
