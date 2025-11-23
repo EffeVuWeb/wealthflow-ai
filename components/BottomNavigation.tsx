@@ -1,6 +1,6 @@
 import React from 'react';
 import { AppView } from '../types';
-import { LayoutDashboard, List, TrendingUp, Calendar, Settings } from './Icons';
+import { LayoutDashboard, List, TrendingUp, Calendar, Settings } from 'lucide-react';
 
 interface BottomNavigationProps {
     activeView: AppView;
