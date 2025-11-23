@@ -122,6 +122,7 @@ export enum AppView {
   FORECAST = 'FORECAST',
   CALENDAR = 'CALENDAR',
   GAMIFICATION = 'GAMIFICATION',
+  AUTOMATIONS = 'AUTOMATIONS',
   SETTINGS = 'SETTINGS'
 }
 
@@ -164,4 +165,43 @@ export interface Badge {
   unlocked: boolean;
   progress?: number; // 0 to 100
   color: string;
+}
+
+export type AutomationTriggerType = 'transaction_received' | 'balance_below' | 'category_exceeds';
+export type AutomationActionType = 'create_invoice' | 'send_notification' | 'add_tag';
+
+export interface AutomationTrigger {
+  type: AutomationTriggerType;
+  conditions: {
+    accountId?: string;
+    category?: string;
+    amountMin?: number;
+    amountMax?: number;
+    descriptionContains?: string;
+    balanceThreshold?: number;
+    categoryLimit?: number;
+  };
+}
+
+export interface AutomationAction {
+  type: AutomationActionType;
+  params: {
+    invoiceAmount?: number;
+    invoiceDescription?: string;
+    notificationTitle?: string;
+    notificationBody?: string;
+    tag?: string;
+  };
+}
+
+export interface AutomationRule {
+  id: string;
+  name: string;
+  description: string;
+  active: boolean;
+  trigger: AutomationTrigger;
+  action: AutomationAction;
+  createdAt: string;
+  lastTriggered?: string;
+  triggerCount: number;
 }

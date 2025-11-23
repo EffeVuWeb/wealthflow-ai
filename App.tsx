@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { AppView, Transaction, FinancialSummary, Loan, Account, Budget, Goal, Subscription, Invoice, DashboardWidget, Investment, Debt, RecurringTransaction, ToastMessage, ToastType } from './types';
+import { AppView, Transaction, FinancialSummary, Loan, Account, Budget, Goal, Subscription, Invoice, DashboardWidget, Investment, Debt, RecurringTransaction, ToastMessage, ToastType, AutomationRule } from './types';
 import { INITIAL_TRANSACTIONS, INITIAL_LOANS, INITIAL_ACCOUNTS, INCOME_CATEGORIES, EXPENSE_CATEGORIES, INITIAL_BUDGETS, INITIAL_GOALS, INITIAL_SUBSCRIPTIONS, INITIAL_INVOICES, DEFAULT_WIDGETS, INITIAL_INVESTMENTS, INITIAL_DEBTS, INITIAL_RECURRING_TRANSACTIONS } from './constants';
 import SummaryCard from './components/SummaryCard';
 import AddTransactionModal from './components/AddTransactionModal';
@@ -19,7 +19,9 @@ import SettingsView from './components/SettingsView';
 import InvestmentsView from './components/InvestmentsView';
 import RecurringView from './components/RecurringView';
 import GamificationView from './components/GamificationView';
+import AutomationsView from './components/AutomationsView';
 import { calculateBadges } from './services/gamificationService';
+import { useAutomations } from './hooks/useAutomations';
 import DashboardCustomizer from './components/DashboardCustomizer';
 import Toast from './components/Toast';
 import Auth from './components/Auth';
@@ -135,6 +137,9 @@ function App() {
 
     // Investments State
     const [investments, setInvestments] = useState<Investment[]>([]);
+
+    // Automation Rules State
+    const [automationRules, setAutomationRules] = useState<AutomationRule[]>([]);
 
     // Dashboard Widgets State
     const [widgets, setWidgets] = useState<DashboardWidget[]>(DEFAULT_WIDGETS);
@@ -324,7 +329,7 @@ function App() {
             const loadData = async () => {
                 try {
                     const [
-                        txs, accs, bgs, gls, lns, dbs, subs, invs, invsts, rules, wdgs
+                        txs, accs, bgs, gls, lns, dbs, subs, invs, invsts, rules, autoRules, wdgs
                     ] = await Promise.all([
                         fetchData('transactions'),
                         fetchData('accounts'),
@@ -336,6 +341,7 @@ function App() {
                         fetchData('invoices'),
                         fetchData('investments'),
                         fetchData('recurring_rules'),
+                        fetchData('automation_rules'),
                         fetchData('widgets')
                     ]);
 
@@ -349,6 +355,7 @@ function App() {
                     if (invs) setInvoices(invs);
                     if (invsts) setInvestments(invsts);
                     if (rules) setRecurringRules(rules);
+                    if (autoRules) setAutomationRules(autoRules);
                     if (wdgs && wdgs.length > 0) {
                         setWidgets(wdgs);
                     } else {
@@ -542,6 +549,63 @@ function App() {
         } catch (error) {
             console.error(error);
             addToast("Errore eliminazione regola", "error");
+        }
+    };
+
+    // Automation Rule Handlers
+    const handleAddAutomationRule = async (newRule: Omit<AutomationRule, 'id' | 'createdAt' | 'triggerCount'>) => {
+        const rule: AutomationRule = {
+            ...newRule,
+            id: crypto.randomUUID(),
+            createdAt: new Date().toISOString(),
+            triggerCount: 0
+        };
+        try {
+            await addData('automation_rules', rule);
+            setAutomationRules(prev => [...prev, rule]);
+            addToast("Automazione creata!", "success");
+        } catch (error) {
+            console.error(error);
+            addToast("Errore creazione automazione", "error");
+        }
+    };
+
+    const handleDeleteAutomationRule = async (id: string) => {
+        try {
+            await deleteData('automation_rules', id);
+            setAutomationRules(prev => prev.filter(r => r.id !== id));
+            addToast("Automazione eliminata.", "info");
+        } catch (error) {
+            console.error(error);
+            addToast("Errore eliminazione automazione", "error");
+        }
+    };
+
+    const handleToggleAutomationRule = async (id: string) => {
+        const rule = automationRules.find(r => r.id === id);
+        if (!rule) return;
+
+        const updated = { ...rule, active: !rule.active };
+        try {
+            await updateData('automation_rules', id, updated);
+            setAutomationRules(prev => prev.map(r => r.id === id ? updated : r));
+            addToast(`Automazione ${updated.active ? 'attivata' : 'disattivata'}`, "info");
+        } catch (error) {
+            console.error(error);
+            addToast("Errore aggiornamento automazione", "error");
+        }
+    };
+
+    const handleUpdateAutomationRule = async (id: string, updates: Partial<AutomationRule>) => {
+        const rule = automationRules.find(r => r.id === id);
+        if (!rule) return;
+
+        const updated = { ...rule, ...updates };
+        try {
+            await updateData('automation_rules', id, updated);
+            setAutomationRules(prev => prev.map(r => r.id === id ? updated : r));
+        } catch (error) {
+            console.error(error);
         }
     };
 
@@ -887,7 +951,16 @@ function App() {
     };
 
     // Helper for Privacy Mode
-    const maskAmount = (amount: number) => privacyMode ? '****' : `€ ${amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`;
+    const maskAmount = (amount: number) => privacyMode ? '€ •••' : `€ ${amount.toFixed(2)}`;
+
+    // Automations Engine (after all handlers are defined)
+    useAutomations({
+        rules: automationRules,
+        transactions,
+        accounts,
+        onCreateInvoice: handleAddInvoice,
+        onUpdateRule: handleUpdateAutomationRule
+    });
 
     // RENDER WIDGETS
     const renderWidget = (widget: DashboardWidget) => {
@@ -1084,6 +1157,15 @@ function App() {
         if (activeView === AppView.GAMIFICATION) {
             const badges = calculateBadges(summary, investments, debts, loans, budgets, transactions);
             return <GamificationView badges={badges} />;
+        }
+        if (activeView === AppView.AUTOMATIONS) {
+            return <AutomationsView
+                rules={automationRules}
+                accounts={accounts}
+                onAddRule={handleAddAutomationRule}
+                onDeleteRule={handleDeleteAutomationRule}
+                onToggleRule={handleToggleAutomationRule}
+            />;
         }
 
         if (activeView === AppView.TRANSACTIONS) {
@@ -1283,6 +1365,8 @@ function App() {
                     <button onClick={() => handleNavClick(AppView.INVOICES)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeView === AppView.INVOICES ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Receipt className="w-5 h-5" /><span className="font-medium">Fatture</span></button>
                     <div className="pt-4 pb-2"><p className="text-xs font-bold text-slate-500 uppercase px-4">Altro</p></div>
                     <button onClick={() => handleNavClick(AppView.RECURRING)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeView === AppView.RECURRING ? 'bg-amber-600 text-white shadow-lg shadow-amber-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Zap className="w-5 h-5" /><span className="font-medium">Automazioni</span></button>
+                    <button onClick={() => handleNavClick(AppView.GAMIFICATION)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeView === AppView.GAMIFICATION ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Trophy className="w-5 h-5" /><span className="font-medium">Obiettivi & Badge</span></button>
+                    <button onClick={() => handleNavClick(AppView.AUTOMATIONS)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeView === AppView.AUTOMATIONS ? 'bg-amber-600 text-white shadow-lg shadow-amber-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Zap className="w-5 h-5" /><span className="font-medium">Automazioni Avanzate</span></button>
                     <button onClick={() => handleNavClick(AppView.COACH)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeView === AppView.COACH ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg shadow-fuchsia-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Bot className="w-5 h-5" /><span className="font-medium">AI Coach</span></button>
                     <button onClick={() => handleNavClick(AppView.SETTINGS)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeView === AppView.SETTINGS ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Settings className="w-5 h-5" /><span className="font-medium">Impostazioni</span></button>
                 </nav>
