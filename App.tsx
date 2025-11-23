@@ -1407,26 +1407,18 @@ function App() {
             <BottomNavigation activeView={activeView} onNavigate={handleNavClick} />
 
             {/* Modals */}
-            {isModalOpen && (
-                <AddTransactionModal
-                    onClose={() => setIsModalOpen(false)}
-                    onAddTransaction={handleAddTransaction}
-                    accounts={accounts}
-                />
-            )}
-            {isSubscriptionModalOpen && (
-                <SubscriptionModal
-                    onClose={() => setIsSubscriptionModalOpen(false)}
-                    onAddSubscription={handleAddSubscription}
-                />
-            )}
-            {isCustomizerOpen && (
-                <DashboardCustomizer
-                    widgets={widgets}
-                    onClose={() => setIsCustomizerOpen(false)}
-                    onSave={handleSaveWidgets}
-                />
-            )}
+            <AddTransactionModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                onAdd={handleAddTransaction}
+                accounts={accounts}
+            />
+
+            <SubscriptionModal
+                isOpen={isSubscriptionModalOpen}
+                onClose={() => setIsSubscriptionModalOpen(false)}
+                transactions={transactions}
+            />
         </div>
     );
 }
