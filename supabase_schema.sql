@@ -216,6 +216,7 @@ create table widgets (
   user_id uuid references auth.users not null,
   component_id text not null,
   label text,
+  col_span text default '1',
   visible boolean default true,
   "order" integer,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null

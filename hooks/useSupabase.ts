@@ -27,8 +27,13 @@ export const useSupabase = () => {
     }, []);
 
     const addData = useCallback(async (table: string, item: any) => {
-        const { id, ...rest } = item;
+        const { data: { user } } = await supabase.auth.getUser();
         const snakeItem = mapKeys(item, toSnakeCase);
+
+        if (user) {
+            snakeItem.user_id = user.id;
+        }
+
         const { data, error } = await supabase.from(table).insert(snakeItem).select().single();
         if (error) throw error;
         return mapKeys(data, toCamelCase);
