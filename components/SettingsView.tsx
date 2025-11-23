@@ -14,10 +14,17 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onImport, addToast }) => {
     const [newPin, setNewPin] = useState('');
     const [notificationConfig, setNotificationConfig] = useState<NotificationConfig>(getNotificationConfig());
     const [notificationPermission, setNotificationPermission] = useState<'granted' | 'denied' | 'default'>(checkNotificationPermission());
+    const [darkMode, setDarkMode] = useState(localStorage.getItem('wf_dark_mode') !== 'false');
 
     useEffect(() => {
         setHasPin(!!localStorage.getItem('wf_security_pin'));
-    }, []);
+        // Apply dark mode class to document
+        if (darkMode) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    }, [darkMode]);
 
     const handleExport = () => {
         const data = {
@@ -122,6 +129,13 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onImport, addToast }) => {
         saveNotificationConfig(newConfig);
     };
 
+    const handleToggleDarkMode = () => {
+        const newMode = !darkMode;
+        setDarkMode(newMode);
+        localStorage.setItem('wf_dark_mode', String(newMode));
+        addToast(`Modalità ${newMode ? 'scura' : 'chiara'} attivata`, "info");
+    };
+
     return (
         <div className="space-y-6">
             <div className="bg-gradient-to-r from-slate-800 to-slate-900 border border-slate-700 rounded-2xl p-6 flex items-center gap-4">
@@ -182,6 +196,29 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onImport, addToast }) => {
                 </div>
             </div>
 
+            {/* Dark Mode Section */}
+            <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-6">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-lg ${darkMode ? 'bg-indigo-500/20 text-indigo-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                            {darkMode ? '🌙' : '☀️'}
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-bold text-white">Tema Scuro</h3>
+                            <p className="text-sm text-slate-400">Attiva/disattiva la modalità scura</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={handleToggleDarkMode}
+                        className={`w-12 h-6 rounded-full transition-colors ${darkMode ? 'bg-indigo-600' : 'bg-slate-600'
+                            }`}
+                    >
+                        <div className={`w-5 h-5 bg-white rounded-full transition-transform ${darkMode ? 'translate-x-6' : 'translate-x-0.5'
+                            }`} />
+                    </button>
+                </div>
+            </div>
+
             {/* Notifications Section */}
             <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-6">
                 <div className="flex items-center gap-3 mb-4">
@@ -195,8 +232,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onImport, addToast }) => {
                     <button
                         onClick={handleToggleNotifications}
                         className={`px-4 py-2 rounded-lg font-bold text-sm transition-colors ${notificationConfig.enabled
-                                ? 'bg-blue-600 hover:bg-blue-500 text-white'
-                                : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+                            ? 'bg-blue-600 hover:bg-blue-500 text-white'
+                            : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
                             }`}
                     >
                         {notificationConfig.enabled ? 'Attive' : 'Disattivate'}
