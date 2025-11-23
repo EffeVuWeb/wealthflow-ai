@@ -75,7 +75,8 @@ import {
   AlertTriangle,
   Menu,
   Mic,
-  Trophy
+  Trophy,
+  BellOff
 } from 'lucide-react';
 
 export {
@@ -154,5 +155,6 @@ export {
   AlertTriangle,
   Menu,
   Mic,
-  Trophy
+  Trophy,
+  BellOff
 };

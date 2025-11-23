@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Settings, Download, Upload, FileJson, CheckCircle, AlertCircle, Trash2, Lock, Unlock } from './Icons';
+import { Settings, Download, Upload, FileJson, CheckCircle, AlertCircle, Trash2, Lock, Unlock, Bell, BellOff } from './Icons';
 import { ToastType } from '../types';
+import { getNotificationConfig, saveNotificationConfig, requestNotificationPermission, checkNotificationPermission, NotificationConfig } from '../services/notificationService';
 
 interface SettingsViewProps {
     onImport: (data: any) => void;
@@ -11,6 +12,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onImport, addToast }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [hasPin, setHasPin] = useState(false);
     const [newPin, setNewPin] = useState('');
+    const [notificationConfig, setNotificationConfig] = useState<NotificationConfig>(getNotificationConfig());
+    const [notificationPermission, setNotificationPermission] = useState<'granted' | 'denied' | 'default'>(checkNotificationPermission());
 
     useEffect(() => {
         setHasPin(!!localStorage.getItem('wf_security_pin'));
@@ -38,7 +41,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onImport, addToast }) => {
         document.body.appendChild(downloadAnchorNode);
         downloadAnchorNode.click();
         downloadAnchorNode.remove();
-        
+
         addToast("Backup esportato con successo!", "success");
     };
 
@@ -51,7 +54,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onImport, addToast }) => {
             try {
                 const content = e.target?.result as string;
                 const parsedData = JSON.parse(content);
-                
+
                 // Basic Validation
                 if (!parsedData.transactions || !parsedData.accounts) {
                     throw new Error("Invalid file format");
@@ -68,7 +71,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onImport, addToast }) => {
     };
 
     const handleClearAll = () => {
-        if(window.confirm("SEI SICURO? Questo cancellerà TUTTI i tuoi dati dal browser. Questa azione è irreversibile.")) {
+        if (window.confirm("SEI SICURO? Questo cancellerà TUTTI i tuoi dati dal browser. Questa azione è irreversibile.")) {
             localStorage.clear();
             window.location.reload();
         }
@@ -86,11 +89,37 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onImport, addToast }) => {
     };
 
     const handleRemovePin = () => {
-        if(window.confirm("Vuoi rimuovere il blocco PIN?")) {
+        if (window.confirm("Vuoi rimuovere il blocco PIN?")) {
             localStorage.removeItem('wf_security_pin');
             setHasPin(false);
             addToast("PIN rimosso.", "info");
         }
+    };
+
+    const handleToggleNotifications = async () => {
+        if (!notificationConfig.enabled) {
+            const granted = await requestNotificationPermission();
+            if (granted) {
+                const newConfig = { ...notificationConfig, enabled: true };
+                setNotificationConfig(newConfig);
+                saveNotificationConfig(newConfig);
+                setNotificationPermission('granted');
+                addToast("Notifiche attivate!", "success");
+            } else {
+                addToast("Permesso notifiche negato", "error");
+            }
+        } else {
+            const newConfig = { ...notificationConfig, enabled: false };
+            setNotificationConfig(newConfig);
+            saveNotificationConfig(newConfig);
+            addToast("Notifiche disattivate", "info");
+        }
+    };
+
+    const handleToggleNotificationType = (type: keyof Omit<NotificationConfig, 'enabled'>) => {
+        const newConfig = { ...notificationConfig, [type]: !notificationConfig[type] };
+        setNotificationConfig(newConfig);
+        saveNotificationConfig(newConfig);
     };
 
     return (
@@ -113,10 +142,10 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onImport, addToast }) => {
                     </div>
                     <h3 className="text-lg font-bold text-white mb-2">Esporta Backup (JSON)</h3>
                     <p className="text-sm text-slate-400 mb-6">
-                        Scarica un file completo con tutti i tuoi dati (transazioni, conti, impostazioni). 
+                        Scarica un file completo con tutti i tuoi dati (transazioni, conti, impostazioni).
                         Consigliato farlo una volta al mese.
                     </p>
-                    <button 
+                    <button
                         onClick={handleExport}
                         className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors"
                     >
@@ -131,19 +160,19 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onImport, addToast }) => {
                     </div>
                     <h3 className="text-lg font-bold text-white mb-2">Ripristina Backup</h3>
                     <p className="text-sm text-slate-400 mb-6">
-                        Carica un file JSON precedentemente esportato. 
+                        Carica un file JSON precedentemente esportato.
                         <span className="text-rose-400 font-bold"> Attenzione: sovrascriverà i dati attuali!</span>
                     </p>
-                    
+
                     <div className="relative">
-                        <input 
-                            type="file" 
+                        <input
+                            type="file"
                             ref={fileInputRef}
                             onChange={handleFileUpload}
                             accept=".json"
                             className="hidden"
                         />
-                        <button 
+                        <button
                             onClick={() => fileInputRef.current?.click()}
                             className="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors border border-slate-600"
                         >
@@ -153,8 +182,85 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onImport, addToast }) => {
                 </div>
             </div>
 
-             {/* Security Section */}
-             <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-6">
+            {/* Notifications Section */}
+            <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-6">
+                <div className="flex items-center gap-3 mb-4">
+                    <div className={`p-2 rounded-lg ${notificationConfig.enabled ? 'bg-blue-500/20 text-blue-400' : 'bg-slate-700 text-slate-400'}`}>
+                        {notificationConfig.enabled ? <Bell className="w-5 h-5" /> : <BellOff className="w-5 h-5" />}
+                    </div>
+                    <div className="flex-1">
+                        <h3 className="text-lg font-bold text-white">Notifiche Browser</h3>
+                        <p className="text-sm text-slate-400">Ricevi avvisi per scadenze e budget.</p>
+                    </div>
+                    <button
+                        onClick={handleToggleNotifications}
+                        className={`px-4 py-2 rounded-lg font-bold text-sm transition-colors ${notificationConfig.enabled
+                                ? 'bg-blue-600 hover:bg-blue-500 text-white'
+                                : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+                            }`}
+                    >
+                        {notificationConfig.enabled ? 'Attive' : 'Disattivate'}
+                    </button>
+                </div>
+
+                {notificationPermission === 'denied' && (
+                    <div className="mb-4 p-3 bg-rose-500/10 border border-rose-500/30 rounded-lg">
+                        <p className="text-xs text-rose-300">⚠️ Permesso notifiche negato. Abilitalo nelle impostazioni del browser.</p>
+                    </div>
+                )}
+
+                {notificationConfig.enabled && (
+                    <div className="space-y-3 mt-4 pt-4 border-t border-slate-700">
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm text-slate-300">📄 Scadenze Fatture (3 giorni)</span>
+                            <button
+                                onClick={() => handleToggleNotificationType('invoiceDeadlines')}
+                                className={`w-12 h-6 rounded-full transition-colors ${notificationConfig.invoiceDeadlines ? 'bg-blue-600' : 'bg-slate-600'
+                                    }`}
+                            >
+                                <div className={`w-5 h-5 bg-white rounded-full transition-transform ${notificationConfig.invoiceDeadlines ? 'translate-x-6' : 'translate-x-0.5'
+                                    }`} />
+                            </button>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm text-slate-300">💰 Avvisi Budget Superato</span>
+                            <button
+                                onClick={() => handleToggleNotificationType('budgetAlerts')}
+                                className={`w-12 h-6 rounded-full transition-colors ${notificationConfig.budgetAlerts ? 'bg-blue-600' : 'bg-slate-600'
+                                    }`}
+                            >
+                                <div className={`w-5 h-5 bg-white rounded-full transition-transform ${notificationConfig.budgetAlerts ? 'translate-x-6' : 'translate-x-0.5'
+                                    }`} />
+                            </button>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm text-slate-300">🔄 Rinnovi Abbonamenti (1 giorno)</span>
+                            <button
+                                onClick={() => handleToggleNotificationType('subscriptionRenewals')}
+                                className={`w-12 h-6 rounded-full transition-colors ${notificationConfig.subscriptionRenewals ? 'bg-blue-600' : 'bg-slate-600'
+                                    }`}
+                            >
+                                <div className={`w-5 h-5 bg-white rounded-full transition-transform ${notificationConfig.subscriptionRenewals ? 'translate-x-6' : 'translate-x-0.5'
+                                    }`} />
+                            </button>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm text-slate-300">🏦 Rate Prestiti (3 giorni)</span>
+                            <button
+                                onClick={() => handleToggleNotificationType('loanPayments')}
+                                className={`w-12 h-6 rounded-full transition-colors ${notificationConfig.loanPayments ? 'bg-blue-600' : 'bg-slate-600'
+                                    }`}
+                            >
+                                <div className={`w-5 h-5 bg-white rounded-full transition-transform ${notificationConfig.loanPayments ? 'translate-x-6' : 'translate-x-0.5'
+                                    }`} />
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Security Section */}
+            <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-6">
                 <div className="flex items-center gap-3 mb-4">
                     <div className="p-2 bg-violet-500/20 rounded-lg text-violet-400">
                         {hasPin ? <Lock className="w-5 h-5" /> : <Unlock className="w-5 h-5" />}
@@ -172,15 +278,15 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onImport, addToast }) => {
                     </div>
                 ) : (
                     <div className="flex gap-4">
-                        <input 
-                            type="password" 
+                        <input
+                            type="password"
                             maxLength={4}
-                            placeholder="PIN (4 cifre)" 
+                            placeholder="PIN (4 cifre)"
                             value={newPin}
                             onChange={(e) => setNewPin(e.target.value)}
                             className="bg-slate-900 border border-slate-700 rounded-lg px-4 text-white w-40 text-center tracking-widest"
                         />
-                        <button 
+                        <button
                             onClick={handleSetPin}
                             disabled={newPin.length !== 4}
                             className="bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-bold text-sm transition-colors"
@@ -189,24 +295,24 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onImport, addToast }) => {
                         </button>
                     </div>
                 )}
-             </div>
+            </div>
 
-             {/* Danger Zone */}
-             <div className="mt-8 border border-rose-900/30 bg-rose-900/10 rounded-2xl p-6">
+            {/* Danger Zone */}
+            <div className="mt-8 border border-rose-900/30 bg-rose-900/10 rounded-2xl p-6">
                 <div className="flex items-center gap-3 mb-4">
                     <AlertCircle className="text-rose-500 w-6 h-6" />
                     <h3 className="text-lg font-bold text-rose-500">Zona Pericolosa</h3>
                 </div>
                 <div className="flex items-center justify-between">
                     <p className="text-sm text-rose-200/70">Cancellare tutti i dati dell'applicazione in modo permanente.</p>
-                    <button 
+                    <button
                         onClick={handleClearAll}
                         className="bg-rose-600 hover:bg-rose-500 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2"
                     >
                         <Trash2 className="w-4 h-4" /> Reset Totale
                     </button>
                 </div>
-             </div>
+            </div>
         </div>
     );
 };

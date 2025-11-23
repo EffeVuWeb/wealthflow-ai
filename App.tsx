@@ -26,6 +26,7 @@ import Auth from './components/Auth';
 import { supabase } from './lib/supabase';
 import { Session } from '@supabase/supabase-js';
 import { useSupabase } from './hooks/useSupabase';
+import { useNotifications } from './hooks/useNotifications';
 import {
     LayoutDashboard,
     List,
@@ -418,6 +419,15 @@ function App() {
             addToast(`${generatedCount} transazioni ricorrenti generate`, 'info');
         }
     }, [recurringRules, session, addData, updateData]);
+
+    // 11. Notifications Monitoring
+    useNotifications({
+        invoices,
+        subscriptions,
+        loans,
+        budgets,
+        transactions
+    });
 
     // --- CONDITIONAL RETURNS (Must be after all hooks) ---
 
