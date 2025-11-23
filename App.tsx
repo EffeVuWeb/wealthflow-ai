@@ -955,13 +955,14 @@ function App() {
     const maskAmount = (amount: number) => privacyMode ? '€ •••' : `€ ${amount.toFixed(2)}`;
 
     // Automations Engine (after all handlers are defined)
-    useAutomations({
+    // TEMPORARILY DISABLED - need to create automation_rules table in Supabase first
+    /* useAutomations({
         rules: automationRules,
         transactions,
         accounts,
         onCreateInvoice: handleAddInvoice,
         onUpdateRule: handleUpdateAutomationRule
-    });
+    }); */
 
     // RENDER WIDGETS
     const renderWidget = (widget: DashboardWidget) => {
