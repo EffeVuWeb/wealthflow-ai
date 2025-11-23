@@ -73,7 +73,8 @@ import {
   Zap,
   XCircle,
   AlertTriangle,
-  Menu
+  Menu,
+  Mic
 } from 'lucide-react';
 
 export {
@@ -150,5 +151,6 @@ export {
   Zap,
   XCircle,
   AlertTriangle,
-  Menu
+  Menu,
+  Mic
 };

@@ -51,6 +51,40 @@ export const extractTransactionFromImage = async (base64Image: string): Promise<
   }
 };
 
+export const parseVoiceTransaction = async (text: string): Promise<{ amount: number, category: string, description: string } | null> => {
+  try {
+    const ai = getAIClient();
+    if (!ai) return null;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: {
+        parts: [
+          {
+            text: `Analyze this spoken transaction: "${text}".
+            Extract the following details in JSON format:
+            - "amount": The number (e.g., "twenty" -> 20).
+            - "description": What was bought.
+            - "category": Choose the best fitting category from this list: ${EXPENSE_CATEGORIES.join(', ')}. If unsure, use "Altro".
+            
+            Return ONLY the JSON object, no markdown.`
+          }
+        ]
+      }
+    });
+
+    const responseText = response.text || "";
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[0]);
+    }
+    return null;
+  } catch (error) {
+    console.error("Error parsing voice transaction:", error);
+    return null;
+  }
+};
+
 export const getFinancialAdvice = async (
   userMessage: string,
   transactions: Transaction[],

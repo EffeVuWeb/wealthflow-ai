@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { TransactionType, Account } from '../types';
 import { INCOME_CATEGORIES, EXPENSE_CATEGORIES } from '../constants';
 import { X, Wallet, Briefcase, Camera, Sparkles, Loader2 } from 'lucide-react';
-import { extractTransactionFromImage } from '../services/geminiService';
+import { extractTransactionFromImage, parseVoiceTransaction } from '../services/geminiService';
+import VoiceInput from './VoiceInput';
 
 interface AddTransactionModalProps {
   isOpen: boolean;
@@ -19,13 +20,14 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ isOpen, onClo
   const [accountId, setAccountId] = useState('');
   const [isBusiness, setIsBusiness] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
+  const [isVoiceProcessing, setIsVoiceProcessing] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Pre-select first account if available
   useEffect(() => {
     if (isOpen && accounts.length > 0 && !accountId) {
-        setAccountId(accounts[0].id);
+      setAccountId(accounts[0].id);
     }
   }, [isOpen, accounts, accountId]);
 
@@ -44,7 +46,7 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ isOpen, onClo
       accountId,
       isBusiness
     });
-    
+
     // Reset
     setAmount('');
     setDescription('');
@@ -54,33 +56,53 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ isOpen, onClo
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-      setIsScanning(true);
-      try {
-          const reader = new FileReader();
-          reader.readAsDataURL(file);
-          reader.onload = async () => {
-              const base64 = reader.result as string;
-              const result = await extractTransactionFromImage(base64);
-              
-              if (result) {
-                  setAmount(result.amount.toString());
-                  setDescription(result.description);
-                  setCategory(result.category);
-                  setType('expense'); // Assume expense for receipts
-                  // Optionally parse date if needed, but default to today is often safer
-              } else {
-                  alert("Non sono riuscito a leggere lo scontrino. Riprova con una foto più nitida.");
-              }
-              setIsScanning(false);
-          };
-      } catch (error) {
-          console.error(error);
-          setIsScanning(false);
-          alert("Errore durante l'analisi dell'immagine.");
+    setIsScanning(true);
+    try {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = async () => {
+        const base64 = reader.result as string;
+        const result = await extractTransactionFromImage(base64);
+
+        if (result) {
+          setAmount(result.amount.toString());
+          setDescription(result.description);
+          setCategory(result.category);
+          setType('expense'); // Assume expense for receipts
+          // Optionally parse date if needed, but default to today is often safer
+        } else {
+          alert("Non sono riuscito a leggere lo scontrino. Riprova con una foto più nitida.");
+        }
+        setIsScanning(false);
+      };
+    } catch (error) {
+      console.error(error);
+      setIsScanning(false);
+      alert("Errore durante l'analisi dell'immagine.");
+    }
+  };
+
+  const handleVoiceResult = async (text: string) => {
+    setIsVoiceProcessing(true);
+    try {
+      const result = await parseVoiceTransaction(text);
+      if (result) {
+        setAmount(result.amount.toString());
+        setDescription(result.description);
+        setCategory(result.category);
+        setType('expense'); // Assume expense for voice commands usually
+      } else {
+        alert("Non ho capito la transazione. Riprova.");
       }
+    } catch (error) {
+      console.error(error);
+      alert("Errore elaborazione vocale");
+    } finally {
+      setIsVoiceProcessing(false);
+    }
   };
 
   const categories = type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
@@ -99,33 +121,35 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ isOpen, onClo
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* AI Scan Button */}
-          <div className="mb-4">
-              <input 
-                  type="file" 
-                  accept="image/*" 
-                  className="hidden" 
-                  ref={fileInputRef}
-                  onChange={handleFileChange}
-              />
-              <button 
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isScanning}
-                className="w-full bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-fuchsia-900/20 border border-white/10"
-              >
-                  {isScanning ? (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" /> Analisi Scontrino in corso...
-                      </>
-                  ) : (
-                      <>
-                        <Camera className="w-5 h-5" /> <Sparkles className="w-4 h-4" /> Smart Scan (AI)
-                      </>
-                  )}
-              </button>
-              <p className="text-center text-[10px] text-slate-500 mt-2">Carica una foto dello scontrino e lascia compilare i campi all'AI.</p>
+          {/* AI Scan & Voice Buttons */}
+          <div className="mb-4 flex gap-2">
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isScanning || isVoiceProcessing}
+              className="flex-1 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-fuchsia-900/20 border border-white/10"
+            >
+              {isScanning ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" /> Analisi...
+                </>
+              ) : (
+                <>
+                  <Camera className="w-5 h-5" /> <Sparkles className="w-4 h-4" /> Smart Scan
+                </>
+              )}
+            </button>
+
+            <VoiceInput onResult={handleVoiceResult} isProcessing={isVoiceProcessing} />
           </div>
+          <p className="text-center text-[10px] text-slate-500 mt-[-10px] mb-4">Carica uno scontrino o usa la voce per compilare in automatico.</p>
 
           <div className="grid grid-cols-2 gap-2 p-1 bg-slate-800 rounded-lg">
             <button
@@ -145,20 +169,20 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ isOpen, onClo
           </div>
 
           {/* Business Toggle */}
-          <div 
+          <div
             onClick={() => setIsBusiness(!isBusiness)}
             className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${isBusiness ? 'bg-blue-500/20 border-blue-500' : 'bg-slate-800 border-slate-700'}`}
           >
-             <div className={`p-2 rounded-lg ${isBusiness ? 'bg-blue-500 text-white' : 'bg-slate-700 text-slate-400'}`}>
-                <Briefcase className="w-5 h-5" />
-             </div>
-             <div className="flex-1">
-                 <p className={`text-sm font-bold ${isBusiness ? 'text-white' : 'text-slate-400'}`}>Transazione Business / P.IVA</p>
-                 <p className="text-xs text-slate-500">{isBusiness ? (type === 'income' ? 'Fattura Emessa' : 'Spesa Deducibile Aziendale') : 'Spesa Personale'}</p>
-             </div>
-             <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${isBusiness ? 'border-blue-500 bg-blue-500' : 'border-slate-500'}`}>
-                 {isBusiness && <div className="w-2 h-2 bg-white rounded-full" />}
-             </div>
+            <div className={`p-2 rounded-lg ${isBusiness ? 'bg-blue-500 text-white' : 'bg-slate-700 text-slate-400'}`}>
+              <Briefcase className="w-5 h-5" />
+            </div>
+            <div className="flex-1">
+              <p className={`text-sm font-bold ${isBusiness ? 'text-white' : 'text-slate-400'}`}>Transazione Business / P.IVA</p>
+              <p className="text-xs text-slate-500">{isBusiness ? (type === 'income' ? 'Fattura Emessa' : 'Spesa Deducibile Aziendale') : 'Spesa Personale'}</p>
+            </div>
+            <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${isBusiness ? 'border-blue-500 bg-blue-500' : 'border-slate-500'}`}>
+              {isBusiness && <div className="w-2 h-2 bg-white rounded-full" />}
+            </div>
           </div>
 
           <div>
@@ -177,33 +201,33 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ isOpen, onClo
           {/* Account Selection */}
           <div>
             <label className="block text-sm text-slate-400 mb-1">
-                {type === 'expense' ? 'Paga con / Addebita su' : 'Accredita su'}
+              {type === 'expense' ? 'Paga con / Addebita su' : 'Accredita su'}
             </label>
             <div className="relative">
-                <Wallet className="absolute left-4 top-3.5 w-5 h-5 text-slate-500" />
-                <select
+              <Wallet className="absolute left-4 top-3.5 w-5 h-5 text-slate-500" />
+              <select
                 required
                 value={accountId}
                 onChange={(e) => setAccountId(e.target.value)}
                 className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-12 pr-4 py-3 text-white focus:outline-none focus:border-blue-500 appearance-none"
-                >
-                    {creditCards.length > 0 && (
-                        <optgroup label="Carte di Credito (Addebito Posticipato)">
-                            {creditCards.map(acc => (
-                                <option key={acc.id} value={acc.id}>
-                                    {acc.name} - Saldo: € {acc.balance.toFixed(2)}
-                                </option>
-                            ))}
-                        </optgroup>
-                    )}
-                    <optgroup label="Conti Correnti & Contanti">
-                        {liquidAccounts.map(acc => (
-                            <option key={acc.id} value={acc.id}>
-                                {acc.name} - Disp: € {acc.balance.toFixed(2)}
-                            </option>
-                        ))}
-                    </optgroup>
-                </select>
+              >
+                {creditCards.length > 0 && (
+                  <optgroup label="Carte di Credito (Addebito Posticipato)">
+                    {creditCards.map(acc => (
+                      <option key={acc.id} value={acc.id}>
+                        {acc.name} - Saldo: € {acc.balance.toFixed(2)}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                <optgroup label="Conti Correnti & Contanti">
+                  {liquidAccounts.map(acc => (
+                    <option key={acc.id} value={acc.id}>
+                      {acc.name} - Disp: € {acc.balance.toFixed(2)}
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
             </div>
           </div>
 
