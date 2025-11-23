@@ -22,6 +22,7 @@ import GamificationView from './components/GamificationView';
 import AutomationsView from './components/AutomationsView';
 import { calculateBadges } from './services/gamificationService';
 import { useAutomations } from './hooks/useAutomations';
+import BottomNavigation from './components/BottomNavigation';
 import DashboardCustomizer from './components/DashboardCustomizer';
 import Toast from './components/Toast';
 import Auth from './components/Auth';
@@ -1402,18 +1403,30 @@ function App() {
                 </main>
             </div>
 
-            <AddTransactionModal
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                onAdd={handleAddTransaction}
-                accounts={accounts}
-            />
+            {/* Bottom Navigation for Mobile */}
+            <BottomNavigation activeView={activeView} onNavigate={handleNavClick} />
 
-            <SubscriptionModal
-                isOpen={isSubscriptionModalOpen}
-                onClose={() => setIsSubscriptionModalOpen(false)}
-                transactions={transactions}
-            />
+            {/* Modals */}
+            {isModalOpen && (
+                <AddTransactionModal
+                    onClose={() => setIsModalOpen(false)}
+                    onAddTransaction={handleAddTransaction}
+                    accounts={accounts}
+                />
+            )}
+            {isSubscriptionModalOpen && (
+                <SubscriptionModal
+                    onClose={() => setIsSubscriptionModalOpen(false)}
+                    onAddSubscription={handleAddSubscription}
+                />
+            )}
+            {isCustomizerOpen && (
+                <DashboardCustomizer
+                    widgets={widgets}
+                    onClose={() => setIsCustomizerOpen(false)}
+                    onSave={handleSaveWidgets}
+                />
+            )}
         </div>
     );
 }
