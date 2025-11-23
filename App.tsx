@@ -53,7 +53,9 @@ import {
     TrendingDown,
     Clock,
     AlertCircle,
-    Zap
+    Zap,
+    Menu,
+    X
 } from './components/Icons';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, Legend, CartesianGrid, AreaChart, Area } from 'recharts';
 
@@ -67,6 +69,11 @@ function App() {
 
     const [activeView, setActiveView] = useState<AppView>(AppView.DASHBOARD);
     const [privacyMode, setPrivacyMode] = useState(false);
+
+    const handleNavClick = (view: AppView) => {
+        setActiveView(view);
+        setIsMobileMenuOpen(false);
+    };
 
     // Security State
     const [isLocked, setIsLocked] = useState(false);
@@ -128,6 +135,7 @@ function App() {
     // Dashboard Widgets State
     const [widgets, setWidgets] = useState<DashboardWidget[]>(DEFAULT_WIDGETS);
     const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
@@ -1223,29 +1231,42 @@ function App() {
                 ))}
             </div>
 
-            <aside className="hidden md:flex flex-col w-64 bg-slate-900/80 border-r border-slate-800 backdrop-blur-xl z-10 fixed h-full overflow-y-auto">
-                <div className="p-6 flex items-center gap-3">
-                    <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center"><span className="text-white font-bold text-lg">W</span></div>
-                    <h1 className="text-xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">WealthFlow</h1>
+            {/* Mobile Menu Overlay */}
+            {isMobileMenuOpen && (
+                <div
+                    className="fixed inset-0 bg-black/60 z-40 md:hidden backdrop-blur-sm"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                />
+            )}
+
+            <aside className={`fixed top-0 left-0 h-full w-64 bg-slate-900/95 border-r border-slate-800 backdrop-blur-xl z-50 transition-transform duration-300 md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+                <div className="p-6 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center"><span className="text-white font-bold text-lg">W</span></div>
+                        <h1 className="text-xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">WealthFlow</h1>
+                    </div>
+                    <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-slate-400 hover:text-white">
+                        <X className="w-6 h-6" />
+                    </button>
                 </div>
-                <nav className="flex-1 px-4 py-6 space-y-2">
-                    <button onClick={() => setActiveView(AppView.DASHBOARD)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeView === AppView.DASHBOARD ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><LayoutDashboard className="w-5 h-5" /><span className="font-medium">Dashboard</span></button>
-                    <button onClick={() => setActiveView(AppView.FORECAST)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeView === AppView.FORECAST ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><LineChart className="w-5 h-5" /><span className="font-medium">Forecast</span></button>
-                    <button onClick={() => setActiveView(AppView.CALENDAR)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeView === AppView.CALENDAR ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><CalendarDays className="w-5 h-5" /><span className="font-medium">Calendario</span></button>
+                <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto h-[calc(100vh-88px)]">
+                    <button onClick={() => handleNavClick(AppView.DASHBOARD)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeView === AppView.DASHBOARD ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><LayoutDashboard className="w-5 h-5" /><span className="font-medium">Dashboard</span></button>
+                    <button onClick={() => handleNavClick(AppView.FORECAST)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeView === AppView.FORECAST ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><LineChart className="w-5 h-5" /><span className="font-medium">Forecast</span></button>
+                    <button onClick={() => handleNavClick(AppView.CALENDAR)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeView === AppView.CALENDAR ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><CalendarDays className="w-5 h-5" /><span className="font-medium">Calendario</span></button>
                     <div className="pt-4 pb-2"><p className="text-xs font-bold text-slate-500 uppercase px-4">Gestione</p></div>
-                    <button onClick={() => setActiveView(AppView.TRANSACTIONS)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeView === AppView.TRANSACTIONS ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><List className="w-5 h-5" /><span className="font-medium">Transazioni</span></button>
-                    <button onClick={() => setActiveView(AppView.ACCOUNTS)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeView === AppView.ACCOUNTS ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><WalletCards className="w-5 h-5" /><span className="font-medium">Conti & Carte</span></button>
-                    <button onClick={() => setActiveView(AppView.LOANS)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeView === AppView.LOANS ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Landmark className="w-5 h-5" /><span className="font-medium">Finanziamenti</span></button>
-                    <button onClick={() => setActiveView(AppView.DEBTS)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeView === AppView.DEBTS ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><HandCoins className="w-5 h-5" /><span className="font-medium">Debiti</span></button>
-                    <button onClick={() => setActiveView(AppView.SUBSCRIPTIONS)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeView === AppView.SUBSCRIPTIONS ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Repeat className="w-5 h-5" /><span className="font-medium">Abbonamenti</span></button>
-                    <button onClick={() => setActiveView(AppView.INVESTMENTS)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeView === AppView.INVESTMENTS ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><TrendingUp className="w-5 h-5" /><span className="font-medium">Investimenti</span></button>
+                    <button onClick={() => handleNavClick(AppView.TRANSACTIONS)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeView === AppView.TRANSACTIONS ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><List className="w-5 h-5" /><span className="font-medium">Transazioni</span></button>
+                    <button onClick={() => handleNavClick(AppView.ACCOUNTS)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeView === AppView.ACCOUNTS ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><WalletCards className="w-5 h-5" /><span className="font-medium">Conti & Carte</span></button>
+                    <button onClick={() => handleNavClick(AppView.LOANS)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeView === AppView.LOANS ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Landmark className="w-5 h-5" /><span className="font-medium">Finanziamenti</span></button>
+                    <button onClick={() => handleNavClick(AppView.DEBTS)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeView === AppView.DEBTS ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><HandCoins className="w-5 h-5" /><span className="font-medium">Debiti</span></button>
+                    <button onClick={() => handleNavClick(AppView.SUBSCRIPTIONS)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeView === AppView.SUBSCRIPTIONS ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Repeat className="w-5 h-5" /><span className="font-medium">Abbonamenti</span></button>
+                    <button onClick={() => handleNavClick(AppView.INVESTMENTS)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeView === AppView.INVESTMENTS ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><TrendingUp className="w-5 h-5" /><span className="font-medium">Investimenti</span></button>
                     <div className="pt-4 pb-2"><p className="text-xs font-bold text-slate-500 uppercase px-4">Business</p></div>
-                    <button onClick={() => setActiveView(AppView.TAXES)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeView === AppView.TAXES ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Briefcase className="w-5 h-5" /><span className="font-medium">Partita IVA</span></button>
-                    <button onClick={() => setActiveView(AppView.INVOICES)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeView === AppView.INVOICES ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Receipt className="w-5 h-5" /><span className="font-medium">Fatture</span></button>
+                    <button onClick={() => handleNavClick(AppView.TAXES)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeView === AppView.TAXES ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Briefcase className="w-5 h-5" /><span className="font-medium">Partita IVA</span></button>
+                    <button onClick={() => handleNavClick(AppView.INVOICES)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeView === AppView.INVOICES ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Receipt className="w-5 h-5" /><span className="font-medium">Fatture</span></button>
                     <div className="pt-4 pb-2"><p className="text-xs font-bold text-slate-500 uppercase px-4">Altro</p></div>
-                    <button onClick={() => setActiveView(AppView.RECURRING)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeView === AppView.RECURRING ? 'bg-amber-600 text-white shadow-lg shadow-amber-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Zap className="w-5 h-5" /><span className="font-medium">Automazioni</span></button>
-                    <button onClick={() => setActiveView(AppView.COACH)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeView === AppView.COACH ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg shadow-fuchsia-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Bot className="w-5 h-5" /><span className="font-medium">AI Coach</span></button>
-                    <button onClick={() => setActiveView(AppView.SETTINGS)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeView === AppView.SETTINGS ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Settings className="w-5 h-5" /><span className="font-medium">Impostazioni</span></button>
+                    <button onClick={() => handleNavClick(AppView.RECURRING)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeView === AppView.RECURRING ? 'bg-amber-600 text-white shadow-lg shadow-amber-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Zap className="w-5 h-5" /><span className="font-medium">Automazioni</span></button>
+                    <button onClick={() => handleNavClick(AppView.COACH)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeView === AppView.COACH ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg shadow-fuchsia-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Bot className="w-5 h-5" /><span className="font-medium">AI Coach</span></button>
+                    <button onClick={() => handleNavClick(AppView.SETTINGS)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeView === AppView.SETTINGS ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Settings className="w-5 h-5" /><span className="font-medium">Impostazioni</span></button>
                 </nav>
             </aside>
 
@@ -1253,6 +1274,9 @@ function App() {
                 {/* Mobile Header */}
                 <div className="md:hidden bg-slate-900/80 backdrop-blur-xl p-4 border-b border-slate-800 flex items-center justify-between sticky top-0 z-20">
                     <div className="flex items-center gap-2">
+                        <button onClick={() => setIsMobileMenuOpen(true)} className="mr-1 text-slate-400 hover:text-white">
+                            <Menu className="w-6 h-6" />
+                        </button>
                         <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center"><span className="text-white font-bold text-lg">W</span></div>
                         <span className="font-bold text-white">WealthFlow</span>
                     </div>
