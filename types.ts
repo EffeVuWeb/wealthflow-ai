@@ -113,14 +113,15 @@ export enum AppView {
   LOANS = 'LOANS',
   DEBTS = 'DEBTS', // New separate view
   ACCOUNTS = 'ACCOUNTS',
-  INVESTMENTS = 'INVESTMENTS', 
+  INVESTMENTS = 'INVESTMENTS',
   SUBSCRIPTIONS = 'SUBSCRIPTIONS',
   RECURRING = 'RECURRING', // New Automation View
   TAXES = 'TAXES',
   INVOICES = 'INVOICES',
   COACH = 'COACH',
-  FORECAST = 'FORECAST', 
-  CALENDAR = 'CALENDAR', 
+  FORECAST = 'FORECAST',
+  CALENDAR = 'CALENDAR',
+  GAMIFICATION = 'GAMIFICATION',
   SETTINGS = 'SETTINGS'
 }
 
@@ -142,7 +143,7 @@ export interface DashboardWidget {
   id: string;
   label: string;
   componentId: 'summary_cards' | 'expense_pie' | 'net_worth_pie' | 'income_vs_expense' | 'yearly_trend' | 'quick_budgets' | 'quick_goals' | 'actions' | 'recent_transactions' | 'tax_deadline' | 'debt_summary';
-  colSpan: '1' | '2' | '3' | 'full'; 
+  colSpan: '1' | '2' | '3' | 'full';
   visible: boolean;
   order: number;
 }
@@ -153,4 +154,14 @@ export interface ToastMessage {
   id: string;
   message: string;
   type: ToastType;
+}
+
+export interface Badge {
+  id: string;
+  name: string;
+  description: string;
+  icon: string; // Lucide icon name
+  unlocked: boolean;
+  progress?: number; // 0 to 100
+  color: string;
 }

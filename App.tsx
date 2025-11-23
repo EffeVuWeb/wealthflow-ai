@@ -18,6 +18,8 @@ import CalendarView from './components/CalendarView';
 import SettingsView from './components/SettingsView';
 import InvestmentsView from './components/InvestmentsView';
 import RecurringView from './components/RecurringView';
+import GamificationView from './components/GamificationView';
+import { calculateBadges } from './services/gamificationService';
 import DashboardCustomizer from './components/DashboardCustomizer';
 import Toast from './components/Toast';
 import Auth from './components/Auth';
@@ -55,6 +57,7 @@ import {
     AlertCircle,
     Zap,
     Menu,
+    Trophy,
     X
 } from './components/Icons';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, Legend, CartesianGrid, AreaChart, Area } from 'recharts';
@@ -1068,6 +1071,10 @@ function App() {
         if (activeView === AppView.CALENDAR) return <CalendarView loans={loans} subscriptions={subscriptions} invoices={invoices} />;
         if (activeView === AppView.SETTINGS) return <SettingsView onImport={handleImportData} addToast={addToast} />;
         if (activeView === AppView.RECURRING) return <RecurringView recurringRules={recurringRules} accounts={accounts} onAddRule={handleAddRecurringRule} onDeleteRule={handleDeleteRecurringRule} />;
+        if (activeView === AppView.GAMIFICATION) {
+            const badges = calculateBadges(summary, investments, debts, loans, budgets, transactions);
+            return <GamificationView badges={badges} />;
+        }
 
         if (activeView === AppView.TRANSACTIONS) {
             return (
@@ -1260,6 +1267,7 @@ function App() {
                     <button onClick={() => handleNavClick(AppView.DEBTS)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeView === AppView.DEBTS ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><HandCoins className="w-5 h-5" /><span className="font-medium">Debiti</span></button>
                     <button onClick={() => handleNavClick(AppView.SUBSCRIPTIONS)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeView === AppView.SUBSCRIPTIONS ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Repeat className="w-5 h-5" /><span className="font-medium">Abbonamenti</span></button>
                     <button onClick={() => handleNavClick(AppView.INVESTMENTS)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeView === AppView.INVESTMENTS ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><TrendingUp className="w-5 h-5" /><span className="font-medium">Investimenti</span></button>
+                    <button onClick={() => handleNavClick(AppView.GAMIFICATION)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeView === AppView.GAMIFICATION ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Trophy className="w-5 h-5" /><span className="font-medium">Obiettivi & Badge</span></button>
                     <div className="pt-4 pb-2"><p className="text-xs font-bold text-slate-500 uppercase px-4">Business</p></div>
                     <button onClick={() => handleNavClick(AppView.TAXES)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeView === AppView.TAXES ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Briefcase className="w-5 h-5" /><span className="font-medium">Partita IVA</span></button>
                     <button onClick={() => handleNavClick(AppView.INVOICES)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeView === AppView.INVOICES ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Receipt className="w-5 h-5" /><span className="font-medium">Fatture</span></button>

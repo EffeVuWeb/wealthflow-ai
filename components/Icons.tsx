@@ -74,7 +74,8 @@ import {
   XCircle,
   AlertTriangle,
   Menu,
-  Mic
+  Mic,
+  Trophy
 } from 'lucide-react';
 
 export {
@@ -152,5 +153,6 @@ export {
   XCircle,
   AlertTriangle,
   Menu,
-  Mic
+  Mic,
+  Trophy
 };
