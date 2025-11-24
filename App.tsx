@@ -893,11 +893,14 @@ function App() {
     };
 
     // Investment Handlers
+    // Investment Handlers
     const handleAddInvestment = async (newInv: Omit<Investment, 'id'>) => {
-        const inv = { ...newInv, id: crypto.randomUUID() };
+        const tempId = crypto.randomUUID();
+        const inv = { ...newInv, id: tempId };
         try {
-            await addData('investments', inv);
-            setInvestments(prev => [...prev, inv]);
+            const savedInv = await addData('investments', inv);
+            // Use the saved object from DB to ensure we have the correct ID and fields
+            setInvestments(prev => [...prev, savedInv]);
         } catch (error: any) {
             console.error(error);
             addToast("Errore salvataggio investimento: " + (error.message || "Sconosciuto"), "error");
@@ -908,9 +911,9 @@ function App() {
         try {
             await deleteData('investments', id);
             setInvestments(prev => prev.filter(i => i.id !== id));
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            addToast("Errore eliminazione investimento", "error");
+            addToast("Errore eliminazione investimento: " + (error.message || "Sconosciuto"), "error");
         }
     };
 
@@ -919,9 +922,9 @@ function App() {
         try {
             await updateData('investments', id, { currentPrice: newPrice, lastUpdated: now });
             setInvestments(prev => prev.map(i => i.id === id ? { ...i, currentPrice: newPrice, lastUpdated: now } : i));
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            addToast("Errore aggiornamento investimento", "error");
+            addToast("Errore aggiornamento investimento: " + (error.message || "Sconosciuto"), "error");
         }
     };
 
