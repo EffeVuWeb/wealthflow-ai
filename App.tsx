@@ -718,9 +718,9 @@ function App() {
         try {
             await addData('accounts', account);
             setAccountsState(prev => [...prev, account]);
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            addToast("Errore salvataggio conto", "error");
+            addToast("Errore salvataggio conto: " + (error.message || "Sconosciuto"), "error");
         }
     };
 
