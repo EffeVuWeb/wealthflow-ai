@@ -616,9 +616,9 @@ function App() {
         try {
             await addData('loans', loan);
             setLoans(prev => [...prev, loan]);
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            addToast("Errore salvataggio finanziamento", "error");
+            addToast("Errore salvataggio finanziamento: " + (error.message || "Sconosciuto"), "error");
         }
     };
 
