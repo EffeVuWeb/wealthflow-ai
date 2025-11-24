@@ -898,9 +898,9 @@ function App() {
         try {
             await addData('investments', inv);
             setInvestments(prev => [...prev, inv]);
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            addToast("Errore salvataggio investimento", "error");
+            addToast("Errore salvataggio investimento: " + (error.message || "Sconosciuto"), "error");
         }
     };
 
