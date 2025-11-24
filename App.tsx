@@ -675,9 +675,9 @@ function App() {
         try {
             await addData('debts', debt);
             setDebts(prev => [...prev, debt]);
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            addToast("Errore salvataggio debito", "error");
+            addToast("Errore salvataggio debito: " + (error.message || "Sconosciuto"), "error");
         }
     };
 
