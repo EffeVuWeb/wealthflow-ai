@@ -20,7 +20,9 @@ import InvestmentsView from './components/InvestmentsView';
 import RecurringView from './components/RecurringView';
 import GamificationView from './components/GamificationView';
 import AutomationsView from './components/AutomationsView';
+import SmartAlerts from './components/SmartAlerts';
 import { calculateBadges } from './services/gamificationService';
+import { generateSmartAlerts } from './services/predictionService';
 import { useAutomations } from './hooks/useAutomations';
 import BottomNavigation from './components/BottomNavigation';
 import DashboardCustomizer from './components/DashboardCustomizer';
@@ -797,6 +799,16 @@ function App() {
         }
     }
 
+    const handleUpdateGoal = async (id: string, updates: Partial<Goal>) => {
+        try {
+            await updateData('goals', id, updates);
+            setGoals(prev => prev.map(g => g.id === id ? { ...g, ...updates } : g));
+        } catch (error) {
+            console.error(error);
+            addToast("Errore aggiornamento obiettivo", "error");
+        }
+    };
+
     // Subscription Handlers
     const handleAddSubscription = async (newSub: Omit<Subscription, 'id'>) => {
         const sub = { ...newSub, id: crypto.randomUUID() };
@@ -1071,7 +1083,14 @@ function App() {
                             <h3 className="text-lg font-bold text-white">{widget.label}</h3>
                             <button onClick={() => setActiveView(AppView.DASHBOARD)} className="text-sm text-blue-400 hover:text-blue-300">Vedi tutti</button>
                         </div>
-                        <GoalsView goals={goals} onAddGoal={handleAddGoal} onDeleteGoal={handleDeleteGoal} onUpdateAmount={handleUpdateGoalAmount} />
+                        <GoalsView
+                            goals={goals}
+                            transactions={transactions}
+                            onAddGoal={handleAddGoal}
+                            onDeleteGoal={handleDeleteGoal}
+                            onUpdateAmount={handleUpdateGoalAmount}
+                            onUpdateGoal={handleUpdateGoal}
+                        />
                     </div>
                 );
             case 'recent_transactions':
@@ -1260,6 +1279,16 @@ function App() {
                         <Layout className="w-4 h-4" /> Personalizza Dashboard
                     </button>
                 </div>
+
+                {/* Smart Alerts */}
+                <SmartAlerts
+                    alerts={generateSmartAlerts(
+                        budgets,
+                        transactions,
+                        subscriptions,
+                        accounts.reduce((sum, a) => sum + a.balance, 0)
+                    )}
+                />
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {widgets

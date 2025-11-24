@@ -138,6 +138,8 @@ export interface Goal {
   currentAmount: number;
   deadline?: string;
   color: string;
+  lastCelebrated?: number; // Last milestone percentage celebrated (0, 25, 50, 75, 100)
+  createdAt?: string; // For calculating savings rate
 }
 
 export interface DashboardWidget {

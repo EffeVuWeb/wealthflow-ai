@@ -76,7 +76,8 @@ import {
   Menu,
   Mic,
   Trophy,
-  BellOff
+  BellOff,
+  Award
 } from 'lucide-react';
 
 export {
@@ -156,5 +157,6 @@ export {
   Menu,
   Mic,
   Trophy,
-  BellOff
+  BellOff,
+  Award
 };
