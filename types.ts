@@ -1,5 +1,5 @@
 export type TransactionType = 'income' | 'expense';
-export type AccountType = 'bank' | 'cash' | 'credit_card';
+export type AccountType = 'bank' | 'credit_card' | 'savings' | 'cash';
 
 export interface Account {
   id: string;
@@ -7,7 +7,9 @@ export interface Account {
   type: AccountType;
   initialBalance: number; // Starting balance
   balance: number; // Current calculated balance
-  color?: string;
+  color: string;
+  paymentDay?: number; // Day of month when card is paid (e.g., 15)
+  lastPaymentDate?: string; // Track last payment to avoid duplicates
 }
 
 export interface Transaction {

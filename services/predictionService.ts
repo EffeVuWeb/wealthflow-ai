@@ -1,4 +1,4 @@
-import { Transaction, Budget, Subscription } from '../types';
+import { Transaction, Budget, Subscription, Account } from '../types';
 
 export interface SmartAlert {
     id: string;
@@ -158,13 +158,66 @@ export const detectMissingTransactions = (
 };
 
 /**
+ * Detect upcoming credit card payments
+ */
+export const detectUpcomingCardPayments = (
+    accounts: Account[],
+    transactions: Transaction[]
+): SmartAlert[] => {
+    const alerts: SmartAlert[] = [];
+    const today = new Date();
+
+    accounts
+        .filter(a => a.type === 'credit_card' && a.paymentDay)
+        .forEach(card => {
+            const paymentDay = card.paymentDay || 15;
+            const nextPayment = new Date(today.getFullYear(), today.getMonth(), paymentDay);
+
+            // If payment day already passed this month, use next month
+            if (nextPayment < today) {
+                nextPayment.setMonth(nextPayment.getMonth() + 1);
+            }
+
+            const daysUntil = Math.ceil((nextPayment.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+            // Calculate balance due (previous month's expenses)
+            const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+            const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
+
+            const balanceDue = transactions
+                .filter(t =>
+                    t.accountId === card.id &&
+                    t.type === 'expense' &&
+                    new Date(t.date) >= lastMonth &&
+                    new Date(t.date) <= lastMonthEnd
+                )
+                .reduce((sum, t) => sum + t.amount, 0);
+
+            // Alert 3-5 days before payment
+            if (daysUntil > 0 && daysUntil <= 5 && balanceDue > 0) {
+                alerts.push({
+                    id: `card-payment-${card.id}`,
+                    type: daysUntil <= 2 ? 'critical' : 'warning',
+                    title: daysUntil === 1 ? '🚨 Carta da Pagare Domani!' : `⚠️ Carta da Pagare tra ${daysUntil} Giorni`,
+                    message: `Devi pagare €${balanceDue.toFixed(2)} per "${card.name}" il ${nextPayment.toLocaleDateString('it-IT')}`,
+                    dismissible: true,
+                    createdAt: new Date().toISOString()
+                });
+            }
+        });
+
+    return alerts;
+};
+
+/**
  * Generate all smart alerts
  */
 export const generateSmartAlerts = (
     budgets: Budget[],
     transactions: Transaction[],
     subscriptions: Subscription[],
-    currentBalance: number
+    currentBalance: number,
+    accounts: Account[] = []
 ): SmartAlert[] => {
     const alerts: SmartAlert[] = [];
 
@@ -181,6 +234,10 @@ export const generateSmartAlerts = (
     // Missing transaction alerts
     const missingAlerts = detectMissingTransactions(subscriptions, transactions);
     alerts.push(...missingAlerts);
+
+    // Credit card payment alerts
+    const cardAlerts = detectUpcomingCardPayments(accounts, transactions);
+    alerts.push(...cardAlerts);
 
     // Sort by priority: critical > warning > info
     const priorityOrder = { critical: 0, warning: 1, info: 2 };

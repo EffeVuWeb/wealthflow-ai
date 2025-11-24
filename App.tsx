@@ -1298,7 +1298,8 @@ function App() {
                         budgets,
                         transactions,
                         subscriptions,
-                        accounts.reduce((sum, a) => sum + a.balance, 0)
+                        accounts.reduce((sum, a) => sum + a.balance, 0),
+                        accounts
                     )}
                 />
 
