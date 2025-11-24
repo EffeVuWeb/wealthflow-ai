@@ -635,8 +635,20 @@ function App() {
     };
 
     const handlePayInstallment = async (loan: Loan) => {
-        const defaultAccount = accounts.find(a => a.type === 'bank') || accounts[0];
-        if (!defaultAccount) { addToast("Crea un conto prima di pagare!", "error"); return; }
+        // Use loan's payment account if set, otherwise use first bank account
+        const paymentAccount = loan.paymentAccountId
+            ? accounts.find(a => a.id === loan.paymentAccountId)
+            : accounts.find(a => a.type === 'bank') || accounts[0];
+
+        if (!paymentAccount) {
+            addToast("Seleziona un conto di pagamento per questo finanziamento!", "error");
+            return;
+        }
+
+        // Check balance and warn if insufficient
+        if (paymentAccount.balance < loan.monthlyPayment) {
+            addToast(`Attenzione: saldo insufficiente su ${paymentAccount.name} (€${paymentAccount.balance.toFixed(2)})`, "warning");
+        }
 
         const expense: Omit<Transaction, 'id'> = {
             amount: loan.monthlyPayment,
@@ -644,7 +656,7 @@ function App() {
             category: 'Finanziamenti',
             description: `Rata: ${loan.name}`,
             date: new Date().toISOString(),
-            accountId: defaultAccount.id
+            accountId: paymentAccount.id
         };
         await handleAddTransaction(expense);
 
@@ -1168,7 +1180,7 @@ function App() {
     const renderContent = () => {
         if (activeView === AppView.COACH) return <CoachView transactions={transactions} summary={summary} loans={loans} accounts={accounts} subscriptions={subscriptions} invoices={invoices} investments={investments} debts={debts} />;
         if (activeView === AppView.ACCOUNTS) return <AccountsView accounts={accounts} transactions={transactions} onAddAccount={handleAddAccount} onDeleteAccount={handleDeleteAccount} />;
-        if (activeView === AppView.LOANS) return <LoansView loans={loans} onAddLoan={handleAddLoan} onDeleteLoan={handleDeleteLoan} onPayInstallment={handlePayInstallment} />;
+        if (activeView === AppView.LOANS) return <LoansView loans={loans} accounts={accounts} onAddLoan={handleAddLoan} onDeleteLoan={handleDeleteLoan} onPayInstallment={handlePayInstallment} />;
         if (activeView === AppView.DEBTS) return <DebtsView debts={debts} accounts={accounts} onAddDebt={handleAddDebt} onDeleteDebt={handleDeleteDebt} onPayDebt={handlePayDebt} />;
         if (activeView === AppView.SUBSCRIPTIONS) return <SubscriptionsView subscriptions={subscriptions} onAddSubscription={handleAddSubscription} onDeleteSubscription={handleDeleteSubscription} onRenewSubscription={handleRenewSubscription} />;
         if (activeView === AppView.TAXES) return <TaxesView transactions={transactions} invoices={invoices} accounts={accounts} onAddTransaction={handleAddTransaction} addToast={addToast} />;

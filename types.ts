@@ -57,6 +57,7 @@ export interface Loan {
   interestRate?: number;
   nextPaymentDate?: string; // ISO Date string
   reminderEnabled?: boolean;
+  paymentAccountId?: string; // Which account pays this loan
 }
 
 export interface Debt {

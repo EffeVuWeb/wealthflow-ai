@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
-import { X, Calendar, Bell } from 'lucide-react';
-import { Loan } from '../types';
+import { X, Calendar, Bell, Wallet } from 'lucide-react';
+import { Loan, Account } from '../types';
 
 interface AddLoanModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAdd: (loan: Omit<Loan, 'id'>) => void;
+  accounts: Account[];
 }
 
-const AddLoanModal: React.FC<AddLoanModalProps> = ({ isOpen, onClose, onAdd }) => {
+const AddLoanModal: React.FC<AddLoanModalProps> = ({ isOpen, onClose, onAdd, accounts }) => {
   const [name, setName] = useState('');
   const [totalAmount, setTotalAmount] = useState('');
   const [remainingAmount, setRemainingAmount] = useState('');
@@ -16,6 +17,7 @@ const AddLoanModal: React.FC<AddLoanModalProps> = ({ isOpen, onClose, onAdd }) =
   const [interestRate, setInterestRate] = useState('');
   const [nextPaymentDate, setNextPaymentDate] = useState('');
   const [reminderEnabled, setReminderEnabled] = useState(false);
+  const [paymentAccountId, setPaymentAccountId] = useState('');
 
   if (!isOpen) return null;
 
@@ -34,9 +36,10 @@ const AddLoanModal: React.FC<AddLoanModalProps> = ({ isOpen, onClose, onAdd }) =
       monthlyPayment: parseFloat(monthlyPayment),
       interestRate: interestRate ? parseFloat(interestRate) : undefined,
       nextPaymentDate: nextPaymentDate || undefined,
-      reminderEnabled
+      reminderEnabled,
+      paymentAccountId: paymentAccountId || undefined
     });
-    
+
     // Reset
     setName('');
     setTotalAmount('');
@@ -45,6 +48,7 @@ const AddLoanModal: React.FC<AddLoanModalProps> = ({ isOpen, onClose, onAdd }) =
     setInterestRate('');
     setNextPaymentDate('');
     setReminderEnabled(false);
+    setPaymentAccountId('');
     onClose();
   };
 
@@ -124,32 +128,52 @@ const AddLoanModal: React.FC<AddLoanModalProps> = ({ isOpen, onClose, onAdd }) =
           </div>
 
           <div className="grid grid-cols-1 gap-4 pt-2">
-              <div>
-                  <label className="block text-sm text-slate-400 mb-1">Prossima Scadenza</label>
-                  <div className="relative">
-                    <Calendar className="absolute left-3 top-3 w-5 h-5 text-slate-500" />
-                    <input
-                        type="date"
-                        value={nextPaymentDate}
-                        onChange={(e) => setNextPaymentDate(e.target.value)}
-                        className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-white focus:outline-none focus:border-violet-500"
-                    />
-                  </div>
+            <div>
+              <label className="block text-sm text-slate-400 mb-1">Prossima Scadenza</label>
+              <div className="relative">
+                <Calendar className="absolute left-3 top-3 w-5 h-5 text-slate-500" />
+                <input
+                  type="date"
+                  value={nextPaymentDate}
+                  onChange={(e) => setNextPaymentDate(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-white focus:outline-none focus:border-violet-500"
+                />
               </div>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm text-slate-400 mb-1">Conto di Pagamento (Opzionale)</label>
+            <div className="relative">
+              <Wallet className="absolute left-3 top-3 w-5 h-5 text-slate-500" />
+              <select
+                value={paymentAccountId}
+                onChange={(e) => setPaymentAccountId(e.target.value)}
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-white focus:outline-none focus:border-violet-500"
+              >
+                <option value="">Seleziona conto...</option>
+                {accounts.map(acc => (
+                  <option key={acc.id} value={acc.id}>
+                    {acc.name} (€{acc.balance.toFixed(2)})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <p className="text-xs text-slate-500 mt-1">Da quale conto verranno pagate le rate?</p>
           </div>
 
           <div className="flex items-center gap-3 bg-slate-800 p-3 rounded-xl border border-slate-700">
-              <button
-                type="button"
-                onClick={() => setReminderEnabled(!reminderEnabled)}
-                className={`p-2 rounded-lg transition-colors ${reminderEnabled ? 'bg-violet-500 text-white' : 'bg-slate-700 text-slate-400'}`}
-              >
-                  <Bell className="w-5 h-5" />
-              </button>
-              <div>
-                  <p className="text-sm font-medium text-white">Attiva Promemoria</p>
-                  <p className="text-xs text-slate-400">Avvisami quando la rata è in scadenza</p>
-              </div>
+            <button
+              type="button"
+              onClick={() => setReminderEnabled(!reminderEnabled)}
+              className={`p-2 rounded-lg transition-colors ${reminderEnabled ? 'bg-violet-500 text-white' : 'bg-slate-700 text-slate-400'}`}
+            >
+              <Bell className="w-5 h-5" />
+            </button>
+            <div>
+              <p className="text-sm font-medium text-white">Attiva Promemoria</p>
+              <p className="text-xs text-slate-400">Avvisami quando la rata è in scadenza</p>
+            </div>
           </div>
 
           <button
